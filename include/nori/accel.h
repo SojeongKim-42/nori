@@ -7,6 +7,7 @@
 #pragma once
 
 #include <nori/mesh.h>
+#include <nori/node.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -51,20 +52,7 @@ public:
      *
      * \return \c true if an intersection was found
      */
-        struct OctreeNode {
-        BoundingBox3f box; //node가 가리키는 box
-        std::array<OctreeNode*, 8> children; //node의 children
-        bool leaf;
 
-        OctreeNode(const BoundingBox3f& bbox) : box(bbox) {
-            for (int i = 0; i < 8; ++i) {
-                children[i] = nullptr;
-            }
-            leaf = false;
-        }
-    };
-
-    void buildChildOctree(OctreeNode* node) const;
     std::vector<uint32_t> build(const Ray3f &ray_, OctreeNode *node_, std::vector<uint32_t> triangles, int depth=0) const;
 
     bool rayIntersect(const Ray3f &ray, Intersection &its, bool shadowRay) const;
@@ -72,6 +60,7 @@ public:
 private:
     Mesh         *m_mesh = nullptr; ///< Mesh (only a single one for now)
     BoundingBox3f m_bbox;           ///< Bounding box of the entire scene
+
 };
 
 NORI_NAMESPACE_END

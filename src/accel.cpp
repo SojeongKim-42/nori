@@ -5,6 +5,7 @@
 */
 
 #include <nori/accel.h>
+#include <nori/node.h>
 #include <Eigen/Geometry>
 
 NORI_NAMESPACE_BEGIN
@@ -15,76 +16,31 @@ void Accel::addMesh(Mesh *mesh) {
     m_bbox = m_mesh->getBoundingBox();
 }
 
-void Accel::buildChildOctree(OctreeNode *node) const {
-    // 노드의 bounding box를 8개로 나눕니다.
-    Vector3f min = node->box.min;
-    Vector3f max = node->box.max;
-    Vector3f mid = (min + max) * 0.5f;
-    float sideLengthX = mid.x() - min.x();
-    float sideLengthY = mid.y() - min.y();
-    float sideLengthZ = mid.z() - min.z();
-
-    for (int i = 0; i < 2; ++i) {
-        for (int j = 0; j < 2; ++j) {
-            for (int k = 0; k < 2; ++k) {
-                Vector3f childMin(min.x() + i * (sideLengthX),
-                                  min.y() + j * (sideLengthY),
-                                  min.z() + k * (sideLengthZ));
-                Vector3f childMax(childMin.x() + (sideLengthX),
-                                  childMin.y() + (sideLengthY),
-                                  childMin.z() + (sideLengthZ));
-
-                BoundingBox3f childBox(childMin, childMax);
-                node->children[int(i * 4 + j * 2 + k)] =
-                    new OctreeNode(childBox);
-            }
-        }
-    }
-}
-
-std::vector<uint32_t> Accel::build(const Ray3f &ray_, OctreeNode *node_,
+std::vector<uint32_t> Accel::build(const Ray3f &ray, OctreeNode *node_,
                                    std::vector<uint32_t> triangles, int depth) const {
     OctreeNode *node = node_;
-    std::vector<uint32_t> itsTriangles(0);
-    
+    std::vector<uint32_t> itsTriangles(0); //만나는 삼각형
 
-    if (triangles.size() == 0) {
+    if (triangles.size() == 0 ||triangles.size() <= 10||depth>9) {
         return triangles;
     }
 
-    if (triangles.size() <= 10) {
-        node_->leaf = true;
-        return triangles;
-    }
-
-    if (depth>9) {
-        std::cout << "depth too much, triangle" << std::endl;
-        std::cout << triangles.size() << std::endl;
-        return triangles;
-    }
-
-    buildChildOctree(node);
-    Ray3f ray(ray_);
+    node->buildChildOctree();
     std::vector<std::vector<uint32_t>> subTriangles(8);
-
-    for (uint32_t idx : triangles) {  // 모든 삼각형이 자식 노드의 박스와 만나는지 확인 후 subtriangle에 push
-        for (int i = 0; i < 8; ++i) {
-            OctreeNode *childNode = node->children[i];
-            if (childNode->box.overlaps(m_mesh->getBoundingBox(idx))) {  // 삼각형의 바운딩박스와 박스가 겹쳐지면 만남
-                subTriangles[i].push_back(idx);
-            }
-        }
-    }
 
     for (int i = 0; i < 8; ++i) {
         OctreeNode *childNode = node->children[i];
-        if (childNode && childNode->box.rayIntersect(ray)) {  // childNode를 차례로 탐색하며 ray와 만난다면 자식 노드 다시 생성
-            buildChildOctree(node);
+        if (childNode !=nullptr && childNode->box.rayIntersect(ray)) {  // childNode가 ray와 만난다면 자식 노드 다시 생성
+            for (uint32_t idx : triangles) { // 모든 삼각형이 자식 노드의 박스와 만나는지 확인 후 subtriangle에 push
+                if (childNode->box.overlaps(m_mesh->getBoundingBox(idx))) {  // 삼각형의 바운딩박스와 박스가 겹쳐지면 만남
+                    subTriangles[i].push_back(idx);
+                }
+            }
             std::vector<uint32_t> result =
                 build(ray, childNode, subTriangles[i], depth+1);
-            itsTriangles.insert(itsTriangles.end(), result.begin(),
-                                result.end());
+            itsTriangles.insert(itsTriangles.end(), result.begin(), result.end());
         }
+        delete childNode;
     }
     return itsTriangles;
 }
