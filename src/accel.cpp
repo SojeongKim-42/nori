@@ -14,35 +14,12 @@ void Accel::addMesh(Mesh *mesh) {
     if (m_mesh) throw NoriException("Accel: only a single mesh is supported!");
     m_mesh = mesh;
     m_bbox = m_mesh->getBoundingBox();
-}
-
-std::vector<uint32_t> Accel::build(const Ray3f &ray, OctreeNode *node_,
-                                   std::vector<uint32_t> triangles, int depth) const {
-    OctreeNode *node = node_;
-    std::vector<uint32_t> itsTriangles(0); //만나는 삼각형
-
-    if (triangles.size() == 0 ||triangles.size() <= 10||depth>9) {
-        return triangles;
+    std::vector<uint32_t> allTriangles(0);
+    for (uint32_t idx = 0; idx < m_mesh->getTriangleCount(); ++idx) {
+        allTriangles.push_back(idx);
     }
-
-    node->buildChildOctree();
-    std::vector<std::vector<uint32_t>> subTriangles(8);
-
-    for (int i = 0; i < 8; ++i) {
-        OctreeNode *childNode = node->children[i];
-        if (childNode !=nullptr && childNode->box.rayIntersect(ray)) {  // childNode가 ray와 만난다면 자식 노드 다시 생성
-            for (uint32_t idx : triangles) { // 모든 삼각형이 자식 노드의 박스와 만나는지 확인 후 subtriangle에 push
-                if (childNode->box.overlaps(m_mesh->getBoundingBox(idx))) {  // 삼각형의 바운딩박스와 박스가 겹쳐지면 만남
-                    subTriangles[i].push_back(idx);
-                }
-            }
-            std::vector<uint32_t> result =
-                build(ray, childNode, subTriangles[i], depth+1);
-            itsTriangles.insert(itsTriangles.end(), result.begin(), result.end());
-        }
-        delete childNode;
-    }
-    return itsTriangles;
+    m_node = new OctreeNode(m_bbox, allTriangles);  // 최초의 node
+    m_node->build(m_mesh);  // OctreeNode 생성
 }
 
 bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its,
@@ -53,15 +30,8 @@ bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its,
     Ray3f ray(ray_);  /// Make a copy of the ray (we will need to update its
                       /// '.maxt' value)
 
-    OctreeNode *node = new OctreeNode(m_bbox);  // 최초의 node
-    std::vector<uint32_t> allTriangles(0);
-    for (uint32_t idx = 0; idx < m_mesh->getTriangleCount(); ++idx) {
-        allTriangles.push_back(idx);
-    }
-
     std::vector<uint32_t> triangles(0);
-    int depth=0;
-    triangles = build(ray, node, allTriangles, depth);  // ray가 만나는 triangle들
+    triangles=m_node->findTriangles(ray, triangles);
 
     for (uint32_t idx : triangles) {
         float u, v, t;
