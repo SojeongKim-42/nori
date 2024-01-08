@@ -25,7 +25,6 @@ Scene::~Scene() {
 }
 
 void Scene::activate() {
-    m_accel->build();
 
     if (!m_integrator)
         throw NoriException("No integrator was specified!");

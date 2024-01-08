@@ -27,7 +27,7 @@ public:
     void addMesh(Mesh *mesh);
 
     /// Build the acceleration data structure (currently a no-op)
-    void build();
+    // void build();
 
     /// Return an axis-aligned box that bounds the scene
     const BoundingBox3f &getBoundingBox() const { return m_bbox; }
@@ -51,6 +51,22 @@ public:
      *
      * \return \c true if an intersection was found
      */
+        struct OctreeNode {
+        BoundingBox3f box; //node가 가리키는 box
+        std::array<OctreeNode*, 8> children; //node의 children
+        bool leaf;
+
+        OctreeNode(const BoundingBox3f& bbox) : box(bbox) {
+            for (int i = 0; i < 8; ++i) {
+                children[i] = nullptr;
+            }
+            leaf = false;
+        }
+    };
+
+    void buildChildOctree(OctreeNode* node) const;
+    std::vector<uint32_t> build(const Ray3f &ray_, OctreeNode *node_, std::vector<uint32_t> triangles, int depth=0) const;
+
     bool rayIntersect(const Ray3f &ray, Intersection &its, bool shadowRay) const;
 
 private:
