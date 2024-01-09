@@ -29,10 +29,10 @@ bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its,
 
     Ray3f ray(ray_);  /// Make a copy of the ray (we will need to update its
                       /// '.maxt' value)
-    ray.maxt=std::numeric_limits<float>::infinity();
 
     std::vector<uint32_t> triangles(0);
-    triangles=m_node->findTriangles(ray, triangles);
+
+    triangles=m_node->findTriangles(ray, std::numeric_limits<float>::infinity());
 
     for (uint32_t idx : triangles) {
         float u, v, t;
