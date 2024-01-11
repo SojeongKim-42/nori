@@ -11,7 +11,6 @@ class OctreeNode {
     BoundingBox3f m_box;  // node가 가리키는 box
     bool m_leaf;
     int m_depth;
-    Point3f m_origin;
     std::vector<uint32_t> m_triangles;
     std::array<OctreeNode *, 8> m_children = {nullptr};  // node의 children
 
@@ -22,13 +21,11 @@ class OctreeNode {
         m_depth = 0;
     }
 
-    OctreeNode(BoundingBox3f bbox, std::vector<uint32_t> triangles, int depth,
-               Point3f origin) {
+    OctreeNode(BoundingBox3f bbox, std::vector<uint32_t> triangles, int depth) {
         m_box = bbox;
         m_triangles = triangles;
         m_leaf = false;
         m_depth = depth;
-        m_origin = origin;
     }
 
     void buildChildOctree(Mesh *mesh) {
@@ -43,87 +40,91 @@ class OctreeNode {
         for (int i = 0; i < 2; ++i) {
             for (int j = 0; j < 2; ++j) {
                 for (int k = 0; k < 2; ++k) {
-                    Vector3f childMin(min.x() + i * (sideLengthX),
-                                      min.y() + j * (sideLengthY),
-                                      min.z() + k * (sideLengthZ));
-                    Vector3f childMax(childMin.x() + (sideLengthX),
-                                      childMin.y() + (sideLengthY),
-                                      childMin.z() + (sideLengthZ));
+                    Point3f childMin(min.x() + i * (sideLengthX),
+                                     min.y() + j * (sideLengthY),
+                                     min.z() + k * (sideLengthZ));
+                    Point3f childMax(childMin.x() + (sideLengthX),
+                                     childMin.y() + (sideLengthY),
+                                     childMin.z() + (sideLengthZ));
                     BoundingBox3f childBox(childMin, childMax);
 
-                    std::vector<uint32_t> childTriangles(0);
+                    std::vector<uint32_t> childTriangles;
                     for (uint32_t idx : m_triangles) {
                         if (childBox.overlaps(mesh->getBoundingBox(idx))) {
                             childTriangles.push_back(idx);
                         }
                     }
 
-                    m_children[int(i * 4 + j * 2 + k)] = new OctreeNode(
-                        childBox, childTriangles, m_depth + 1, m_origin);
+                    if (childTriangles.size() == 0) {
+                        m_children[int(i * 4 + j * 2 + k)] = nullptr;
+                    } else {
+                        m_children[int(i * 4 + j * 2 + k)] = new OctreeNode(
+                            childBox, childTriangles, m_depth + 1);
+                    }
                 }
             }
         }
     }
 
     void build(Mesh *mesh) {
-        if (m_triangles.size() == 0 || m_triangles.size() <= 10 ||
-            m_depth == MAX_DEPTH) {
+        if (m_triangles.size() <= 10 || m_depth == MAX_DEPTH) {
             m_leaf = true;
-            for (int i4 = 0; i4 < 8; ++i4) {
-                m_children[i4] = nullptr;
+            for (OctreeNode *child : m_children) {
+                child = nullptr;
             }
             return;
         }
 
         buildChildOctree(mesh);
-        for (int i5 = 0; i5 < 8; ++i5) {
-            m_children[i5]->build(mesh);
+        for (OctreeNode *child : m_children) {
+            if (child != nullptr) {
+                child->build(mesh);
+            }
         }
         return;
     }
 
-    void sortNode() {
-        if (m_children[0] != nullptr) {
-            std::sort(m_children.begin(), m_children.end(),
-                      [&](OctreeNode *a, OctreeNode *b) {
-                          float distanceA = a->m_box.distanceTo(m_origin);
-                          float distanceB = b->m_box.distanceTo(m_origin);
-                          return distanceA < distanceB;
-                      });
-
-            for (int i = 0; i < 8; ++i) {
-                m_children[i]->sortNode();
+    std::vector<OctreeNode *> sortIntersectChildNode(Ray3f ray) {
+        std::vector<OctreeNode *> intersectChilds;
+        for (OctreeNode *child : m_children) {
+            if (child != nullptr && child->m_box.rayIntersect(ray)) {
+                intersectChilds.push_back(child);
             }
         }
+
+        std::sort(intersectChilds.begin(), intersectChilds.end(),
+                  [&](OctreeNode *a, OctreeNode *b) {
+                      float farA, farB, distanceA, distanceB;
+                      a->m_box.rayIntersect(ray, distanceA, farA);
+                      b->m_box.rayIntersect(ray, distanceB, farB);
+                      return distanceA < distanceB;
+                  });
+
+        return intersectChilds;
     }
 
-    std::vector<uint32_t> findTriangles(Ray3f ray,
-                                        float minD) {
-        std::vector<uint32_t> answerTriangles;
-        // 정렬 ---
-        if (ray.o != m_origin) { 
-            m_origin = ray.o;
-            sortNode();
-        }
-
-        // 교차하는 삼각형 반환 ---
+    uint32_t findIntersection(Ray3f &ray, Mesh *mesh) {
+        uint32_t closestIts = -1;
         if (m_leaf) {
-            return m_triangles;
-        }
-
-        for (int i0 = 0; i0 < 8; ++i0) {
-            if (m_children[i0]->m_box.rayIntersect(ray) &&
-                minD >= m_children[i0]->m_box.distanceTo(m_origin)) {
-                std::vector<uint32_t> result =
-                    m_children[i0]->findTriangles(ray, minD);
-                if (true) { //ray와 bbox 안의 삼각형이 만남.
-                    answerTriangles.insert(answerTriangles.end(), result.begin(),
-                                   result.end());
-                    // minD = m_children[i0]->m_box.distanceTo(m_origin);
+            for (uint32_t idx : m_triangles) {
+                float u, v, t;
+                if (mesh->rayIntersect(idx, ray, u, v, t)) {
+                    ray.maxt = t;
+                    closestIts = idx;
                 }
             }
+            return closestIts;  // 삼각형과 만나지 못할 때 -1 리턴
         }
-        return answerTriangles;
+
+        std::vector<OctreeNode *> intersectChilds = sortIntersectChildNode(ray);
+        for (OctreeNode *child : intersectChilds) {
+            uint32_t result = child->findIntersection(ray, mesh);
+            if (result != -1) {
+                closestIts = result;
+            }
+        }
+
+        return closestIts;
     }
 };
 

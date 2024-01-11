@@ -6,6 +6,7 @@
 
 #include <nori/accel.h>
 #include <nori/node.h>
+
 #include <Eigen/Geometry>
 
 NORI_NAMESPACE_BEGIN
@@ -19,7 +20,7 @@ void Accel::addMesh(Mesh *mesh) {
         allTriangles.push_back(idx);
     }
     m_node = new OctreeNode(m_bbox, allTriangles);  // 최초의 node
-    m_node->build(m_mesh);  // OctreeNode 생성
+    m_node->build(m_mesh);                          // OctreeNode 생성
 }
 
 bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its,
@@ -30,15 +31,12 @@ bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its,
     Ray3f ray(ray_);  /// Make a copy of the ray (we will need to update its
                       /// '.maxt' value)
 
-    std::vector<uint32_t> triangles(0);
-
-    triangles=m_node->findTriangles(ray, std::numeric_limits<float>::infinity());
-
-    for (uint32_t idx : triangles) {
+    uint32_t idx = m_node->findIntersection(ray, m_mesh);
+    if (idx != -1) {
         float u, v, t;
         if (m_mesh->rayIntersect(idx, ray, u, v, t)) {
             /* An intersection was found! Can terminate
-               immediately if this is a shadow ray query */
+                immediately if this is a shadow ray query */
             if (shadowRay) return true;
             ray.maxt = its.t = t;
             its.uv = Point2f(u, v);
