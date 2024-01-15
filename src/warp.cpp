@@ -22,7 +22,7 @@ float Warp::squareToUniformSquarePdf(const Point2f &sample) {
 }
 
 Point2f Warp::squareToTent(const Point2f &sample) {
-    // sample은 (0,1) x (0,1), 화면 영역은 (-1,1) x (-1,1)
+    // p은 (0,1) x (0,1), 화면 영역은 (-1,1) x (-1,1)
     float px = 0, py = 0;
 
     if (sample[0] >= 0 && sample[0] < 0.5f) {
@@ -40,28 +40,33 @@ Point2f Warp::squareToTent(const Point2f &sample) {
     return Point2f(px, py);
 }
 
-float Warp::squareToTentPdf(const Point2f &sample) {
-    // sample은 (-1,1) x (-1,1), 화면 영역은 (-1,1) x (-1,1)
+float Warp::squareToTentPdf(const Point2f &p) {
+    // p는 (-1,1) x (-1,1), 화면 영역은 (-1,1) x (-1,1)
+    // p가 현재 자리에 있을 확률
     float px = 0, py = 0;
 
-    if (sample[0] >= -1 && sample[0] <= 1) {
-        px = 1 - std::abs(sample[0]);
+    if (p[0] >= -1 && p[0] <= 1) {
+        px = 1 - std::abs(p[0]);
     }
 
-    if (sample[1] >= -1 && sample[1] <= 1) {
-        py = 1 - std::abs(sample[1]);
+    if (p[1] >= -1 && p[1] <= 1) {
+        py = 1 - std::abs(p[1]);
     }
 
     return px * py;
 }
 
 Point2f Warp::squareToUniformDisk(const Point2f &sample) {
-    throw NoriException("Warp::squareToUniformDisk() is not yet implemented!");
+    float r = sqrt(sample[0]);
+    float a = sample[1] * 2 * M_PI;
+    return Point2f(r * cos(a), r * sin(a));
 }
 
 float Warp::squareToUniformDiskPdf(const Point2f &p) {
-    throw NoriException(
-        "Warp::squareToUniformDiskPdf() is not yet implemented!");
+    if (sqrt((p[0]*p[0]+p[1]*p[1]))>=1){
+        return 0;
+    }
+    return 1/M_PI;
 }
 
 Vector3f Warp::squareToUniformSphere(const Point2f &sample) {
