@@ -108,7 +108,7 @@ float Warp::squareToCosineHemispherePdf(const Vector3f &v) {
     if (v[2] < 0) {
         return 0;
     }
-    return cos(acos(v[2])) / M_PI;  // acos(v[2])=theta
+    return v[2] / M_PI;  // acos(v[2])=theta
 }
 
 Vector3f Warp::squareToBeckmann(const Point2f &sample, float alpha) {
