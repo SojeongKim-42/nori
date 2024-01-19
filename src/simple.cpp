@@ -19,7 +19,7 @@ class SimpleIntegrator : public Integrator {
         Intersection its;
         if (!scene->rayIntersect(ray, its)) return Color3f(0.0f);
 
-        Color3f result;
+        float result;
         Normal3f n = its.shFrame.n;
         Vector3f xTop = m_position - its.p;
         float cosTheta = xTop.dot(n) / (xTop.norm() * n.norm());
@@ -27,11 +27,10 @@ class SimpleIntegrator : public Integrator {
         int V;
         scene->rayIntersect(shadowRay) ? V = 0 : V = 1;
 
-        for (int i = 0; i < 3; i++) {
-            result[i] = m_energy[i] / (4 * pow(M_PI, 2)) *
-                        std::max(0.0f, cosTheta) / pow(xTop.norm(), 2) * V;
-        }
-        return result;
+        result = m_energy[0] / (4 * pow(M_PI, 2)) * std::max(0.0f, cosTheta) /
+                 pow(xTop.norm(), 2) * V;
+
+        return Color3f(result);
     }
 
     std::string toString() const { return "SimpleIntegrator[]"; }
