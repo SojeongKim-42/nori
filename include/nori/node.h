@@ -69,9 +69,7 @@ class OctreeNode {
     void build(Mesh *mesh) {
         if (m_triangles.size() <= 10 || m_depth == MAX_DEPTH) {
             m_leaf = true;
-            for (OctreeNode *child : m_children) {
-                child = nullptr;
-            }
+            std::fill(m_children.begin(), m_children.end(), nullptr);
             return;
         }
 
@@ -103,28 +101,35 @@ class OctreeNode {
         return intersectChilds;
     }
 
-    uint32_t findIntersection(Ray3f &ray, Mesh *mesh) {
-        uint32_t closestIts = -1;
+    uint32_t findIntersectionIdx(Ray3f &ray, Mesh *mesh, Intersection &its) {
+        uint32_t closest = (uint32_t)-1;
         if (m_leaf) {
             for (uint32_t idx : m_triangles) {
                 float u, v, t;
                 if (mesh->rayIntersect(idx, ray, u, v, t)) {
+                    /* At this point, we now know that there is an intersection,
+                    and we know the triangle index of the closest such
+                    intersection.
+
+                    The following computes a number of additional properties
+                    which characterize the intersection (normals, texture
+                    coordinates, etc..)
+                    */
                     ray.maxt = t;
-                    closestIts = idx;
+                    its.uv = Point2f(u, v);
+                    its.mesh = mesh;
+                    closest = idx;
                 }
             }
-            return closestIts;  // 삼각형과 만나지 못할 때 -1 리턴
+            return closest;  // 삼각형과 만나지 못할 때 -1 리턴
         }
 
         std::vector<OctreeNode *> intersectChilds = sortIntersectChildNode(ray);
         for (OctreeNode *child : intersectChilds) {
-            uint32_t result = child->findIntersection(ray, mesh);
-            if (result != -1) {
-                closestIts = result;
-            }
+            uint32_t result = child->findIntersectionIdx(ray, mesh, its);
+            if (result != (uint32_t)-1) closest = result;
         }
-
-        return closestIts;
+        return closest;
     }
 };
 

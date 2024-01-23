@@ -27,32 +27,14 @@ bool Accel::rayIntersect(const Ray3f &ray_, Intersection &its,
                          bool shadowRay) const {
     bool foundIntersection = false;  // Was an intersection found so far?
     uint32_t f = (uint32_t)-1;  // Triangle index of the closest intersection
-
     Ray3f ray(ray_);  /// Make a copy of the ray (we will need to update its
                       /// '.maxt' value)
-
-    uint32_t idx = m_node->findIntersection(ray, m_mesh);
-    if (idx != -1) {
-        float u, v, t;
-        if (m_mesh->rayIntersect(idx, ray, u, v, t)) {
-            /* An intersection was found! Can terminate
-                immediately if this is a shadow ray query */
-            if (shadowRay) return true;
-            ray.maxt = its.t = t;
-            its.uv = Point2f(u, v);
-            its.mesh = m_mesh;
-            f = idx;
-            foundIntersection = true;
-        }
-    }
-
-    if (foundIntersection) {
-        /* At this point, we now know that there is an intersection,
-           and we know the triangle index of the closest such intersection.
-
-           The following computes a number of additional properties which
-           characterize the intersection (normals, texture coordinates, etc..)
-        */
+    f = m_node->findIntersectionIdx(ray, m_mesh, its);
+    if (f != (uint32_t)-1) {
+        foundIntersection = true;
+        /* An intersection was found! Can terminate
+            immediately if this is a shadow ray query */
+        if (shadowRay) return true;
 
         /* Find the barycentric coordinates */
         Vector3f bary;
