@@ -12,16 +12,6 @@
 NORI_NAMESPACE_BEGIN
 
 // parameters needed in integrator
-struct IntegratorContext {
-    const Scene *scene;
-    pcg32 *rng;
-    const Ray3f *ray;
-    IntegratorContext() {
-        scene = nullptr;
-        rng = nullptr;
-        ray = nullptr;
-    }
-};
 /**
  * \brief Abstract integrator (i.e. a rendering technique)
  *
@@ -52,7 +42,7 @@ public:
      *    A (usually) unbiased estimate of the radiance in this direction
      */
     // normals, simple, ao(needs rng to maintain the randomness)
-    virtual Color3f Li(IntegratorContext &context) const = 0;
+    virtual Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const = 0;
 
     /**
      * \brief Return the type of object (i.e. Mesh/BSDF/etc.)
