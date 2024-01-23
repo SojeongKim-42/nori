@@ -1,5 +1,6 @@
 #include <nori/integrator.h>
 #include <nori/scene.h>
+#include <pcg32.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -14,10 +15,10 @@ class SimpleIntegrator : public Integrator {
         m_energy = props.getColor("energy");
     }
 
-    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
+    Color3f Li(IntegratorContext &context) const {
         /* Find the surface that is visible in the requested direction */
         Intersection its;
-        if (!scene->rayIntersect(ray, its)) return Color3f(0.0f);
+        if (!context.scene->rayIntersect(*context.ray, its)) return Color3f(0.0f);
 
         float result;
         Normal3f n = its.shFrame.n;
@@ -25,7 +26,7 @@ class SimpleIntegrator : public Integrator {
         float cosTheta = xTop.dot(n) / (xTop.norm() * n.norm());
         Ray3f shadowRay = Ray3f(its.p, xTop, Epsilon, xTop.norm());
         int V;
-        scene->rayIntersect(shadowRay) ? V = 0 : V = 1;
+        context.scene->rayIntersect(shadowRay) ? V = 0 : V = 1;
 
         result = m_energy[0] / (4 * pow(M_PI, 2)) * std::max(0.0f, cosTheta) /
                  pow(xTop.norm(), 2) * V;

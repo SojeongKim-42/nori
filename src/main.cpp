@@ -33,6 +33,10 @@ static void renderBlock(const Scene *scene, Sampler *sampler, ImageBlock &block)
 
     /* Clear the block contents */
     block.clear();
+    pcg32 rng;
+    IntegratorContext context;
+    context.scene = scene;
+    context.rng = &rng;
 
     /* For each pixel and pixel sample sample */
     for (int y=0; y<size.y(); ++y) {
@@ -46,7 +50,8 @@ static void renderBlock(const Scene *scene, Sampler *sampler, ImageBlock &block)
                 Color3f value = camera->sampleRay(ray, pixelSample, apertureSample);
 
                 /* Compute the incident radiance */
-                value *= integrator->Li(scene, sampler, ray);
+                context.ray = &ray;
+                value *= integrator->Li(context);
 
                 /* Store in the image block */
                 block.put(pixelSample, value);
@@ -88,7 +93,7 @@ static void render(Scene *scene, const std::string &filename) {
             /* Allocate memory for a small image block to be rendered
                by the current thread */
             ImageBlock block(Vector2i(NORI_BLOCK_SIZE),
-                camera->getReconstructionFilter());
+                             camera->getReconstructionFilter());
 
             /* Create a clone of the sampler for the current thread */
             std::unique_ptr<Sampler> sampler(scene->getSampler()->clone());

@@ -152,6 +152,11 @@ public:
                 cout << "Generating " << m_sampleCount << " paths.. " << endl;
 
                 double mean = 0, variance = 0;
+                IntegratorContext context;
+                pcg32 rng;
+                context.rng = &rng;
+                context.scene = scene;
+
                 for (int k=0; k<m_sampleCount; ++k) {
                     /* Sample a ray from the camera */
                     Ray3f ray;
@@ -160,7 +165,8 @@ public:
                     Color3f value = camera->sampleRay(ray, pixelSample, sampler->next2D());
 
                     /* Compute the incident radiance */
-                    value *= integrator->Li(scene, sampler, ray);
+                    context.ray = &ray;
+                    value *= integrator->Li(context);
 
                     /* Numerically robust online variance estimation using an
                        algorithm proposed by Donald Knuth (TAOCP vol.2, 3rd ed., p.232) */

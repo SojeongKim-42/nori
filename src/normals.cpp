@@ -9,10 +9,10 @@ class NormalIntegrator : public Integrator {
         /* No parameters this time */
     }
 
-    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
+    Color3f Li(IntegratorContext &context) const {
         /* Find the surface that is visible in the requested direction */
         Intersection its;
-        if (!scene->rayIntersect(ray, its)) return Color3f(0.0f);
+        if (!context.scene->rayIntersect(*context.ray, its)) return Color3f(0.0f);
 
         /* Return the component-wise absolute
            value of the shading normal as a color */
