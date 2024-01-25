@@ -4,16 +4,18 @@
     Copyright (c) 2015 by Wenzel Jakob
 */
 
-#include <nori/mesh.h>
 #include <nori/bbox.h>
 #include <nori/bsdf.h>
+#include <nori/dpdf.h>
 #include <nori/emitter.h>
+#include <nori/mesh.h>
 #include <nori/warp.h>
+
 #include <Eigen/Geometry>
 
 NORI_NAMESPACE_BEGIN
 
-Mesh::Mesh() { }
+Mesh::Mesh() {}
 
 Mesh::~Mesh() {
     delete m_bsdf;
@@ -26,6 +28,15 @@ void Mesh::activate() {
         m_bsdf = static_cast<BSDF *>(
             NoriObjectFactory::createInstance("diffuse", PropertyList()));
     }
+
+    // build dpdf
+    float wholeSurfaceArea = 0;
+    for (uint32_t idx; idx < getTriangleCount(); idx++) {
+        wholeSurfaceArea += surfaceArea(idx);
+    }
+    for (uint32_t idx; idx < getTriangleCount(); idx++) {
+        m_dpdf.append(surfaceArea(idx) / wholeSurfaceArea);
+    }
 }
 
 float Mesh::surfaceArea(uint32_t index) const {
@@ -36,7 +47,8 @@ float Mesh::surfaceArea(uint32_t index) const {
     return 0.5f * Vector3f((p1 - p0).cross(p2 - p0)).norm();
 }
 
-bool Mesh::rayIntersect(uint32_t index, const Ray3f &ray, float &u, float &v, float &t) const {
+bool Mesh::rayIntersect(uint32_t index, const Ray3f &ray, float &u, float &v,
+                        float &t) const {
     uint32_t i0 = m_F(0, index), i1 = m_F(1, index), i2 = m_F(2, index);
     const Point3f p0 = m_V.col(i0), p1 = m_V.col(i1), p2 = m_V.col(i2);
 
@@ -49,8 +61,7 @@ bool Mesh::rayIntersect(uint32_t index, const Ray3f &ray, float &u, float &v, fl
     /* If determinant is near zero, ray lies in plane of triangle */
     float det = edge1.dot(pvec);
 
-    if (det > -1e-8f && det < 1e-8f)
-        return false;
+    if (det > -1e-8f && det < 1e-8f) return false;
     float inv_det = 1.0f / det;
 
     /* Calculate distance from v[0] to ray origin */
@@ -58,16 +69,14 @@ bool Mesh::rayIntersect(uint32_t index, const Ray3f &ray, float &u, float &v, fl
 
     /* Calculate U parameter and test bounds */
     u = tvec.dot(pvec) * inv_det;
-    if (u < 0.0 || u > 1.0)
-        return false;
+    if (u < 0.0 || u > 1.0) return false;
 
     /* Prepare to test V parameter */
     Vector3f qvec = tvec.cross(edge1);
 
     /* Calculate V parameter and test bounds */
     v = ray.d.dot(qvec) * inv_det;
-    if (v < 0.0 || u + v > 1.0)
-        return false;
+    if (v < 0.0 || u + v > 1.0) return false;
 
     /* Ray intersects triangle -> compute t */
     t = edge2.dot(qvec) * inv_det;
@@ -83,10 +92,8 @@ BoundingBox3f Mesh::getBoundingBox(uint32_t index) const {
 }
 
 Point3f Mesh::getCentroid(uint32_t index) const {
-    return (1.0f / 3.0f) *
-        (m_V.col(m_F(0, index)) +
-         m_V.col(m_F(1, index)) +
-         m_V.col(m_F(2, index)));
+    return (1.0f / 3.0f) * (m_V.col(m_F(0, index)) + m_V.col(m_F(1, index)) +
+                            m_V.col(m_F(2, index)));
 }
 
 void Mesh::addChild(NoriObject *obj) {
@@ -99,18 +106,33 @@ void Mesh::addChild(NoriObject *obj) {
             break;
 
         case EEmitter: {
-                Emitter *emitter = static_cast<Emitter *>(obj);
-                if (m_emitter)
-                    throw NoriException(
-                        "Mesh: tried to register multiple Emitter instances!");
-                m_emitter = emitter;
-            }
-            break;
+            Emitter *emitter = static_cast<Emitter *>(obj);
+            if (m_emitter)
+                throw NoriException(
+                    "Mesh: tried to register multiple Emitter instances!");
+            m_emitter = emitter;
+        } break;
 
         default:
             throw NoriException("Mesh::addChild(<%s>) is not supported!",
                                 classTypeName(obj->getClassType()));
     }
+}
+
+float Mesh::samplePosition(Point2f random, Point3f &sample, Normal3f &normal) {
+    float pdf;
+    uint32_t index = m_dpdf.sampleReuse(random[0], pdf);
+    uint32_t i0 = m_F(0, index), i1 = m_F(1, index), i2 = m_F(2, index);
+    const Point3f p0 = m_V.col(i0), p1 = m_V.col(i1), p2 = m_V.col(i2);
+    const Normal3f n0 = m_N.col(i0), n1 = m_N.col(i1), n2 = m_N.col(i2);
+
+    float a = 1 - sqrt(1 - random[0]);
+    float b = random[1] * sqrt(1 - random[0]);
+    sample = a * p0 + b * p1 + (1 - a - b) * p2;
+    normal = a * n0 + b * n1 + (1 - a - b) * n2;
+    normal.normalize();
+
+    return pdf;
 }
 
 std::string Mesh::toString() const {
@@ -122,17 +144,13 @@ std::string Mesh::toString() const {
         "  bsdf = %s,\n"
         "  emitter = %s\n"
         "]",
-        m_name,
-        m_V.cols(),
-        m_F.cols(),
+        m_name, m_V.cols(), m_F.cols(),
         m_bsdf ? indent(m_bsdf->toString()) : std::string("null"),
-        m_emitter ? indent(m_emitter->toString()) : std::string("null")
-    );
+        m_emitter ? indent(m_emitter->toString()) : std::string("null"));
 }
 
 std::string Intersection::toString() const {
-    if (!mesh)
-        return "Intersection[invalid]";
+    if (!mesh) return "Intersection[invalid]";
 
     return tfm::format(
         "Intersection[\n"
@@ -143,13 +161,9 @@ std::string Intersection::toString() const {
         "  geoFrame = %s,\n"
         "  mesh = %s\n"
         "]",
-        p.toString(),
-        t,
-        uv.toString(),
-        indent(shFrame.toString()),
+        p.toString(), t, uv.toString(), indent(shFrame.toString()),
         indent(geoFrame.toString()),
-        mesh ? mesh->toString() : std::string("null")
-    );
+        mesh ? mesh->toString() : std::string("null"));
 }
 
 NORI_NAMESPACE_END
