@@ -18,7 +18,7 @@ class SimpleIntegrator : public Integrator {
     Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
         /* Find the surface that is visible in the requested direction */
         Intersection its;
-        if (scene->rayIntersect(ray, its)) return Color3f(0.0f);
+        if (!scene->rayIntersect(ray, its)) return Color3f(0.0f);
 
         float result;
         Normal3f n = its.shFrame.n;
