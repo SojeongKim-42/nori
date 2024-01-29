@@ -36,6 +36,7 @@ void Scene::activate() {
         m_sampler = static_cast<Sampler*>(
             NoriObjectFactory::createInstance("independent", PropertyList()));
     }
+    m_accel->build();
 
     cout << endl;
     cout << "Configuration: " << toString() << endl;
@@ -52,9 +53,10 @@ void Scene::addChild(NoriObject *obj) {
             break;
         
         case EEmitter: {
-                //Emitter *emitter = static_cast<Emitter *>(obj);
+                Emitter *emitter = static_cast<Emitter *>(obj);
                 /* TBD */
-                throw NoriException("Scene::addChild(): You need to implement this for emitters");
+                //TODO
+                m_emitters.push_back(emitter);
             }
             break;
 
