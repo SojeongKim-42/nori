@@ -4,7 +4,7 @@
 
     <sampler type="independent">
         <!-- You might want to reduce this number during development -->
-        <integer name="sampleCount" value="512"/>
+        <integer name="sampleCount" value="32"/>
     </sampler>
 
     <camera type="perspective">
@@ -22,7 +22,7 @@
     </camera>
 
     <mesh type="obj">
-        <string name="filename" value="meshes/motto_2018.obj"/>
+        <string name="filename" value="meshes/title.obj"/>
         <bsdf type="diffuse">
             <color name="albedo" value="0.5, 0.5, 0.5"/>
         </bsdf>
@@ -38,14 +38,14 @@
     <mesh type="obj">
         <string name="filename" value="meshes/light1.obj"/>
         <emitter type="area">
-            <color name="radiance" value="20, 80, 30"/>
+            <color name="radiance" value="20, 20, 200"/>
         </emitter>
     </mesh>
 
     <mesh type="obj">
         <string name="filename" value="meshes/light2.obj"/>
         <emitter type="area">
-            <color name="radiance" value="20, 20, 200"/>
+            <color name="radiance" value="200, 20, 20"/>
         </emitter>
     </mesh>
 </scene>
