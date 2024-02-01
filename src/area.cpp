@@ -1,4 +1,6 @@
 #include <nori/emitter.h>
+#include <nori/mesh.h>
+#include <nori/warp.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -7,14 +9,17 @@ NORI_NAMESPACE_BEGIN
  */
 class AreaLight : public Emitter {
    private:
-    Color3f m_color;
+    Color3f m_radiance;
 
    public:
     AreaLight(const PropertyList &props) {
-        m_color = props.getColor("radiance");
+        m_radiance = props.getColor("radiance");
     }
+    Color3f getRadiance() { return m_radiance; }
 
     std::string toString() const { return "Area[]"; }
+
+    EClassType getClassType() const { return EEmitter; }
 };
 
 NORI_REGISTER_CLASS(AreaLight, "area");

@@ -14,9 +14,10 @@ NORI_NAMESPACE_BEGIN
  * \brief Superclass of all emitters
  */
 class Emitter : public NoriObject {
-public:
+   public:
+    virtual Color3f getRadiance() = 0;
 
-    /**
+/**
      * \brief Return the type of object (i.e. Mesh/Emitter/etc.) 
      * provided by this instance
      * */

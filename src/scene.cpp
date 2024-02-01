@@ -53,7 +53,7 @@ void Scene::addChild(NoriObject *obj) {
             break;
         
         case EEmitter: {
-                Emitter *emitter = static_cast<Emitter *>(obj);
+                Mesh *emitter = static_cast<Mesh *>(obj);
                 /* TBD */
                 //TODO
                 m_emitters.push_back(emitter);

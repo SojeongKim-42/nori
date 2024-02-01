@@ -7,10 +7,9 @@
 #pragma once
 
 #include <nori/bbox.h>
+#include <nori/dpdf.h>
 #include <nori/frame.h>
 #include <nori/object.h>
-#include <nori/dpdf.h>
-
 
 NORI_NAMESPACE_BEGIN
 
@@ -27,7 +26,7 @@ struct Intersection {
     /// Position of the surface intersection
     Point3f p;
     /// Unoccluded distance along the ray
-    float t;
+    float t; 
     /// UV coordinates, if any
     Point2f uv;
     /// Shading frame (based on the shading normal)
@@ -157,7 +156,12 @@ class Mesh : public NoriObject {
      * \brief Return the type of object (i.e. Mesh/BSDF/etc.)
      * provided by this instance
      * */
-    EClassType getClassType() const { return EMesh; }
+    EClassType getClassType() const {
+        if (isEmitter()) {
+            return EEmitter;
+        }
+        return EMesh;
+    }
 
    protected:
     /// Create an empty mesh

@@ -28,13 +28,13 @@ void Mesh::activate() {
         m_bsdf = static_cast<BSDF *>(
             NoriObjectFactory::createInstance("diffuse", PropertyList()));
     }
-
+    m_dpdf.clear();
     // build dpdf
     float wholeSurfaceArea = 0;
-    for (uint32_t idx; idx < getTriangleCount(); idx++) {
+    for (uint32_t idx = 0; idx < getTriangleCount(); idx++) {
         wholeSurfaceArea += surfaceArea(idx);
     }
-    for (uint32_t idx; idx < getTriangleCount(); idx++) {
+    for (uint32_t idx = 0; idx < getTriangleCount(); idx++) {
         m_dpdf.append(surfaceArea(idx) / wholeSurfaceArea);
     }
 }
@@ -121,7 +121,7 @@ void Mesh::addChild(NoriObject *obj) {
 
 float Mesh::samplePosition(Point2f random, Point3f &sample, Normal3f &normal) {
     float pdf;
-    uint32_t index = m_dpdf.sampleReuse(random[0], pdf);
+    uint32_t index = m_dpdf.sample(random[0], pdf);
     uint32_t i0 = m_F(0, index), i1 = m_F(1, index), i2 = m_F(2, index);
     const Point3f p0 = m_V.col(i0), p1 = m_V.col(i1), p2 = m_V.col(i2);
     const Normal3f n0 = m_N.col(i0), n1 = m_N.col(i1), n2 = m_N.col(i2);
@@ -132,7 +132,12 @@ float Mesh::samplePosition(Point2f random, Point3f &sample, Normal3f &normal) {
     normal = a * n0 + b * n1 + (1 - a - b) * n2;
     normal.normalize();
 
-    return pdf;
+    float wholeSurfaceArea = 0;
+    for (uint32_t idx = 0; idx < getTriangleCount(); idx++) {
+        wholeSurfaceArea += surfaceArea(idx);
+    }
+
+    return 1 / wholeSurfaceArea;
 }
 
 std::string Mesh::toString() const {
