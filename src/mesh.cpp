@@ -122,14 +122,19 @@ void Mesh::addChild(NoriObject *obj) {
 float Mesh::samplePosition(Point2f random, Point3f &sample, Normal3f &normal) {
     float pdf;
     uint32_t index = m_dpdf.sample(random[0], pdf);
-    uint32_t i0 = m_F(0, index), i1 = m_F(1, index), i2 = m_F(2, index);
-    const Point3f p0 = m_V.col(i0), p1 = m_V.col(i1), p2 = m_V.col(i2);
-    const Normal3f n0 = m_N.col(i0), n1 = m_N.col(i1), n2 = m_N.col(i2);
-
     float a = 1 - sqrt(1 - random[0]);
     float b = random[1] * sqrt(1 - random[0]);
+
+    uint32_t i0 = m_F(0, index), i1 = m_F(1, index), i2 = m_F(2, index);
+    const Point3f p0 = m_V.col(i0), p1 = m_V.col(i1), p2 = m_V.col(i2);
     sample = a * p0 + b * p1 + (1 - a - b) * p2;
-    normal = a * n0 + b * n1 + (1 - a - b) * n2;
+
+    if (m_N.size() != 0) {
+        const Normal3f n0 = m_N.col(i0), n1 = m_N.col(i1), n2 = m_N.col(i2);
+        normal = a * n0 + b * n1 + (1 - a - b) * n2;
+    } else {
+        normal = Vector3f(p1 - p0).cross(p2 - p0);
+    }
     normal.normalize();
 
     float wholeSurfaceArea = 0;
