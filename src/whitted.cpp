@@ -35,7 +35,8 @@ class WhittedIntegrator : public Integrator {
                 Ray3f shadowRay = Ray3f(x + nX * Epsilon, wi, Epsilon,
                                         delta.norm() - Epsilon);
                 if (!scene->rayIntersect(shadowRay)) {
-                    BSDFQueryRecord bRec(its.shFrame.toLocal(wi), its.shFrame.toLocal(-ray.d),
+                    BSDFQueryRecord bRec(its.shFrame.toLocal(wi),
+                                         its.shFrame.toLocal(-ray.d),
                                          ESolidAngle);
                     Color3f fr = its.mesh->getBSDF()->eval(bRec);
                     Color3f G = abs(nX.dot(wi)) * abs(nY.dot(-wi)) /
@@ -43,7 +44,7 @@ class WhittedIntegrator : public Integrator {
                     Color3f Le = emitter->getEmitter()->getRadiance();
                     Color3f Lr = Le * fr * G;
                     result += Lr / pdfPos;
-                } 
+                }
             }
             result /= m_emitters.size();
         } else {
@@ -51,9 +52,10 @@ class WhittedIntegrator : public Integrator {
                 BSDFQueryRecord bRec(its.shFrame.toLocal(-ray.d));
                 Color3f weight =
                     its.mesh->getBSDF()->sample(bRec, sampler->next2D());
+                if (weight.x() == 0) return 0.f;
                 Ray3f newRay = Ray3f(its.p, its.shFrame.toWorld(bRec.wo));
                 result += (1 / 0.95) * weight * Li(scene, sampler, newRay);
-            } 
+            }
         }
         return result;
     }
