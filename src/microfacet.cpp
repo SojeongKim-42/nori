@@ -11,7 +11,7 @@
 NORI_NAMESPACE_BEGIN
 
 class Microfacet : public BSDF {
-public:
+   public:
     Microfacet(const PropertyList &propList) {
         /* RMS surface roughness */
         m_alpha = propList.getFloat("alpha", 0.1f);
@@ -25,30 +25,54 @@ public:
         /* Albedo of the diffuse base material (a.k.a "kd") */
         m_kd = propList.getColor("kd", Color3f(0.5f));
 
-        /* To ensure energy conservation, we must scale the 
-           specular component by 1-kd. 
+        /* To ensure energy conservation, we must scale the
+           specular component by 1-kd.
 
-           While that is not a particularly realistic model of what 
-           happens in reality, this will greatly simplify the 
-           implementation. Please see the course staff if you're 
-           interested in implementing a more realistic version 
+           While that is not a particularly realistic model of what
+           happens in reality, this will greatly simplify the
+           implementation. Please see the course staff if you're
+           interested in implementing a more realistic version
            of this BRDF. */
         m_ks = 1 - m_kd.maxCoeff();
     }
 
+    float G(Vector3f wv, Vector3f wh) const {
+        Vector3f n = (0, 0, 1);
+
+        if (wv.dot(wh) / wv.dot(n) <= 0) {
+            return 0;
+        }
+        float b = 1 / (m_alpha * Frame::tanTheta(wv));
+        if (b < 1.6f) {
+            return 3.535f * b +
+                   2.181f * b * b / (1 + 2.276f * b + 2.577 * b * b);
+        }
+        return 1;
+    }
+
     /// Evaluate the BRDF for the given pair of directions
     Color3f eval(const BSDFQueryRecord &bRec) const {
-    	throw NoriException("MicrofacetBRDF::eval(): not implemented!");
+        Vector3f wh = (bRec.wi + bRec.wo) / pow((bRec.wi + bRec.wo).norm(), 2);
+        float cosThetaI = Frame::cosTheta(bRec.wi),
+              cosThetaO = Frame::cosTheta(bRec.wo),
+              cosThetaH = Frame::cosTheta(wh);
+
+        float D = Warp::squareToBeckmannPdf(wh, m_alpha);
+        float F = fresnel(wh.dot(bRec.wi), m_extIOR, m_intIOR);
+        float Gi = G(bRec.wi, wh), Go = G(bRec.wo, wh);
+
+        Color3f fr = m_kd / M_PI + m_ks * D * F * Gi * Go /
+                                       (4 * cosThetaI * cosThetaO * cosThetaH);
     }
 
     /// Evaluate the sampling density of \ref sample() wrt. solid angles
     float pdf(const BSDFQueryRecord &bRec) const {
-    	throw NoriException("MicrofacetBRDF::pdf(): not implemented!");
+        throw NoriException("MicrofacetBRDF::pdf(): not implemented!");
     }
 
     /// Sample the BRDF
     Color3f sample(BSDFQueryRecord &bRec, const Point2f &_sample) const {
-    	throw NoriException("MicrofacetBRDF::sample(): not implemented!");
+        throw NoriException("MicrofacetBRDF::sample(): not implemented!");
 
         // Note: Once you have implemented the part that computes the scattered
         // direction, the last part of this function should simply return the
@@ -73,14 +97,10 @@ public:
             "  kd = %s,\n"
             "  ks = %f\n"
             "]",
-            m_alpha,
-            m_intIOR,
-            m_extIOR,
-            m_kd.toString(),
-            m_ks
-        );
+            m_alpha, m_intIOR, m_extIOR, m_kd.toString(), m_ks);
     }
-private:
+
+   private:
     float m_alpha;
     float m_intIOR, m_extIOR;
     float m_ks;
