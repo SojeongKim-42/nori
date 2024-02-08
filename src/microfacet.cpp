@@ -77,16 +77,16 @@ class Microfacet : public BSDF {
 
     /// Sample the BRDF
     Color3f sample(BSDFQueryRecord &bRec, const Point2f &_sample) const {
-        bool isSpecular;
-        _sample[0] < m_ks ? isSpecular = true : isSpecular = false;
-        if (isSpecular) {
+        float newSample = _sample[0];
+        newSample < 0.5f ? newSample *= 2 : newSample = (newSample - 0.5f) * 2;
+
+        if (newSample < m_ks) { //specular
             Vector3f n = Warp::squareToBeckmann(_sample, m_alpha);
             Frame localFrame(n);
             Vector3f wi = localFrame.toLocal(bRec.wi);
             bRec.wo = localFrame.toWorld(Vector3f(-wi.x(), -wi.y(), wi.z()));
-            
             bRec.measure = EDiscrete;
-        } else {
+        } else { //diffuse
             if (Frame::cosTheta(bRec.wi) <= 0) return Color3f(0.0f);
             bRec.measure = ESolidAngle;
             bRec.wo = Warp::squareToCosineHemisphere(_sample);
